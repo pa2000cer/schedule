@@ -258,6 +258,58 @@ h1 {
   background: var(--accent);
   color: #1a1206;
 }
+
+/* ---- Event editor form ---- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.field > span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.field input,
+.field textarea {
+  background: var(--ink);
+  border: 1px solid var(--line);
+  color: var(--paper);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 16px; /* >=16px avoids iOS focus-zoom */
+  width: 100%;
+}
+.field textarea {
+  resize: vertical;
+  min-height: 40px;
+}
+.ev-times {
+  display: flex;
+  gap: 10px;
+}
+.ev-times .field {
+  flex: 1;
+}
+.btn-danger {
+  background: none;
+  border: 1px solid #a5504c;
+  color: #e0685f;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.btn-danger:hover {
+  background: #e0685f;
+  border-color: #e0685f;
+  color: #1a1206;
+}
+.item.clickable {
+  cursor: pointer;
+}
 .section-label:first-child {
   margin-top: 0;
 }

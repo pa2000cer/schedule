@@ -117,6 +117,15 @@
       time: a.allDay ? null : isoToClock(a.start),
       title: a.title,
       note: a.location || a.notes || undefined,
+      // edit fields
+      kind: 'appointment',
+      allDay: !!a.allDay,
+      start: a.start,
+      end: a.end,
+      location: a.location || '',
+      notes: a.notes || '',
+      recurring: !!a.recurring,
+      editable: true,
     }));
     const tasks = [];
     (payload.tasks || []).forEach((t) => {
@@ -126,16 +135,24 @@
         title: t.title,
         note: t.notes || undefined,
         done: !!t.done,
+        kind: 'task',
+        allDay: !!t.allDay,
+        start: t.start,
+        end: t.end,
+        notes: t.notes || '',
+        recurring: !!t.recurring,
+        editable: true,
       });
     });
     (payload.grooming || []).forEach((g) => {
       tasks.push({
-        id: 'grooming:' + g.time + ':' + g.title,
+        id: g.id || 'grooming:' + g.time + ':' + g.title,
         time: g.time,
         title: g.title,
         note: g.note || undefined,
-        done: false,
+        done: !!g.done,
         grooming: true,
+        groomingId: g.id,
       });
     });
     return { dateKey: payload.date, appointments, tasks };
@@ -212,10 +229,24 @@
     state[day.dateKey][task.id] = next;
     render();
 
-    // Grooming routine items have no Google event to update — in-memory only.
-    if (task.grooming) return;
+    // Grooming routine done-state persists to Firestore (groomingDone/{date}).
+    if (task.grooming) {
+      fetch('/api/grooming/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: day.dateKey, id: task.groomingId, done: next }),
+      })
+        .then((r) => {
+          if (!r.ok) throw new Error('failed');
+        })
+        .catch(() => {
+          state[day.dateKey][task.id] = !next;
+          render();
+        });
+      return;
+    }
 
-    // Persist real task done-state to Google; revert the optimistic flip on error.
+    // Persist real task done-state; revert the optimistic flip on error.
     fetch('/api/task/complete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -324,7 +355,7 @@
     }
 
     if (kind === 'appointment') {
-      row.className = 'item appt';
+      row.className = 'item appt clickable';
       row.innerHTML =
         '<div class="box apptbox"><span class="dot"></span></div>' +
         '<div class="item-body">' +
@@ -332,13 +363,13 @@
         (item.time ? '<div class="item-time">' + escapeHtml(item.time) + '</div>' : '') +
         (item.note ? '<div class="item-note">' + escapeHtml(item.note) + '</div>' : '') +
         '</div>';
+      row.onclick = () => openEventModal(item);
       return row;
     }
 
     // task
     const done = effectiveDone(day, item);
-    row.className = 'item' + (done ? ' checked' : '');
-    row.onclick = () => toggleTask(day, item);
+    row.className = 'item' + (done ? ' checked' : '') + (item.grooming ? '' : ' clickable');
     row.innerHTML =
       '<div class="box">' + checkSvg() + '</div>' +
       '<div class="item-body">' +
@@ -346,6 +377,16 @@
       (item.time ? '<div class="item-time">' + escapeHtml(item.time) + '</div>' : '') +
       (item.note ? '<div class="item-note">' + escapeHtml(item.note) + '</div>' : '') +
       '</div>';
+    if (item.grooming) {
+      // Grooming routine: whole row toggles the in-routine checkmark.
+      row.onclick = () => toggleTask(day, item);
+    } else {
+      // Real task: the checkbox toggles done; tapping the body opens the editor.
+      row.onclick = (e) => {
+        if (e.target.closest('.box')) toggleTask(day, item);
+        else openEventModal(item);
+      };
+    }
     return row;
   }
 
@@ -641,6 +682,190 @@
   setInterval(() => {
     if (dayOffset(selected, TODAY) === 0) render();
   }, 60000);
+
+  // ---------------------------------------------------------------------
+  // Event editor modal (T29): create / edit / delete an appointment or task.
+  // ---------------------------------------------------------------------
+  const ev = {
+    modal: document.getElementById('event-modal'),
+    heading: document.getElementById('event-modal-title'),
+    close: document.getElementById('event-close'),
+    fTitle: document.getElementById('ev-title'),
+    type: document.getElementById('ev-type'),
+    allday: document.getElementById('ev-allday'),
+    date: document.getElementById('ev-date'),
+    times: document.querySelector('.ev-times'),
+    start: document.getElementById('ev-start'),
+    end: document.getElementById('ev-end'),
+    locWrap: document.querySelector('.ev-loc'),
+    location: document.getElementById('ev-location'),
+    doneWrap: document.querySelector('.ev-done'),
+    done: document.getElementById('ev-done'),
+    notes: document.getElementById('ev-notes'),
+    recNote: document.getElementById('ev-recurring-note'),
+    save: document.getElementById('ev-save'),
+    del: document.getElementById('ev-delete'),
+    note: document.getElementById('ev-note'),
+    editingId: null,
+  };
+
+  function evKind() {
+    const active = ev.type.querySelector('button.active');
+    return active ? active.getAttribute('data-kind') : 'appointment';
+  }
+  function setEvKind(kind) {
+    ev.type.querySelectorAll('button').forEach((b) =>
+      b.classList.toggle('active', b.getAttribute('data-kind') === kind)
+    );
+    evVisibility();
+  }
+  function evVisibility() {
+    const allDay = ev.allday.classList.contains('on');
+    const kind = evKind();
+    ev.times.style.display = allDay ? 'none' : 'flex';
+    ev.locWrap.style.display = kind === 'appointment' ? '' : 'none';
+    ev.doneWrap.style.display = kind === 'task' ? '' : 'none';
+  }
+
+  function openEventModal(item) {
+    ev.note.textContent = '';
+    if (item) {
+      ev.heading.textContent = 'Edit event';
+      ev.editingId = item.id;
+      ev.fTitle.value = item.title || '';
+      setEvKind(item.kind === 'task' ? 'task' : 'appointment');
+      ev.allday.classList.toggle('on', !!item.allDay);
+      const dateStr = item.allDay
+        ? item.start || dateKey(selected)
+        : (item.start || '').split('T')[0] || dateKey(selected);
+      ev.date.value = dateStr;
+      if (!item.allDay && item.start && item.start.indexOf('T') >= 0) {
+        ev.start.value = item.start.slice(11, 16);
+        ev.end.value = item.end && item.end.indexOf('T') >= 0 ? item.end.slice(11, 16) : ev.start.value;
+      } else {
+        ev.start.value = '09:00';
+        ev.end.value = '10:00';
+      }
+      ev.location.value = item.location || '';
+      ev.notes.value = item.notes || '';
+      ev.done.classList.toggle('on', !!item.done);
+      ev.del.hidden = false;
+      ev.recNote.hidden = !item.recurring;
+    } else {
+      ev.heading.textContent = 'New event';
+      ev.editingId = null;
+      ev.fTitle.value = '';
+      setEvKind('appointment');
+      ev.allday.classList.remove('on');
+      ev.date.value = dateKey(selected);
+      const nextH = Math.min(23, new Date().getHours() + 1);
+      ev.start.value = pad2(nextH) + ':00';
+      ev.end.value = pad2(Math.min(23, nextH + 1)) + ':00';
+      ev.location.value = '';
+      ev.notes.value = '';
+      ev.done.classList.remove('on');
+      ev.del.hidden = true;
+      ev.recNote.hidden = true;
+    }
+    evVisibility();
+    ev.modal.hidden = false;
+  }
+
+  function closeEventModal() {
+    ev.modal.hidden = true;
+  }
+
+  function saveEvent() {
+    const title = ev.fTitle.value.trim();
+    if (!title) {
+      ev.note.textContent = 'Title is required.';
+      return;
+    }
+    const kind = evKind();
+    const allDay = ev.allday.classList.contains('on');
+    const date = ev.date.value || dateKey(selected);
+    const body = {
+      kind,
+      title,
+      allDay,
+      date,
+      notes: ev.notes.value,
+      done: ev.done.classList.contains('on'),
+    };
+    if (!allDay) {
+      const st = ev.start.value || '09:00';
+      const en = ev.end.value || st;
+      body.start = date + 'T' + st + ':00';
+      body.end = date + 'T' + en + ':00';
+    }
+    if (kind === 'appointment') body.location = ev.location.value;
+    if (ev.editingId) body.id = ev.editingId;
+
+    ev.save.disabled = true;
+    ev.note.textContent = 'Saving…';
+    fetch(ev.editingId ? '/api/event/update' : '/api/event/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+      .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+      .then(({ ok, data }) => {
+        if (!ok) {
+          ev.note.textContent = 'Error: ' + (data.error || 'failed');
+          return;
+        }
+        closeEventModal();
+        refreshVisible(true);
+      })
+      .catch(() => {
+        ev.note.textContent = 'Network error.';
+      })
+      .finally(() => {
+        ev.save.disabled = false;
+      });
+  }
+
+  function deleteEvent() {
+    if (!ev.editingId) return;
+    if (!window.confirm('Delete this event?')) return;
+    ev.del.disabled = true;
+    fetch('/api/event/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: ev.editingId }),
+    })
+      .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+      .then(({ ok }) => {
+        if (ok) {
+          closeEventModal();
+          refreshVisible(true);
+        } else {
+          ev.note.textContent = 'Delete failed.';
+        }
+      })
+      .catch(() => {
+        ev.note.textContent = 'Network error.';
+      })
+      .finally(() => {
+        ev.del.disabled = false;
+      });
+  }
+
+  ev.close.onclick = closeEventModal;
+  ev.save.onclick = saveEvent;
+  ev.del.onclick = deleteEvent;
+  ev.allday.onclick = () => {
+    ev.allday.classList.toggle('on');
+    evVisibility();
+  };
+  ev.done.onclick = () => ev.done.classList.toggle('on');
+  ev.type.querySelectorAll('button').forEach((b) => {
+    b.onclick = () => setEvKind(b.getAttribute('data-kind'));
+  });
+  ev.modal.addEventListener('click', (e) => {
+    if (e.target === ev.modal) closeEventModal();
+  });
+  document.getElementById('new-event-btn').onclick = () => openEventModal(null);
 
   function openSettings() {
     settings.modal.hidden = false;

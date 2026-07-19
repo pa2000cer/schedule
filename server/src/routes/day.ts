@@ -15,6 +15,7 @@ import { Router, type Request, type Response } from "express";
 import { setToolContext } from "../mcp/tools/context";
 import { connectInProcessMcp } from "../mcp/inProcessClient";
 import { DEFAULT_TIME_ZONE } from "../calendar/calendar";
+import { setGroomingDone } from "../grooming/completion";
 
 export const dayRouter = Router();
 
@@ -83,5 +84,32 @@ dayRouter.post("/api/task/complete", async (req: Request, res: Response) => {
   } finally {
     await mcp.close();
     setToolContext(null);
+  }
+});
+
+// Persist a grooming-routine checkmark (grooming items aren't Firestore events).
+dayRouter.post("/api/grooming/complete", async (req: Request, res: Response) => {
+  const id = req.body?.id;
+  const done = req.body?.done;
+  const date = req.body?.date;
+  if (typeof id !== "string" || !id) {
+    res.status(400).json({ error: "missing_id" });
+    return;
+  }
+  if (typeof done !== "boolean") {
+    res.status(400).json({ error: "missing_done" });
+    return;
+  }
+  if (typeof date !== "string" || !DATE_RE.test(date)) {
+    res.status(400).json({ error: "invalid_date" });
+    return;
+  }
+  try {
+    await setGroomingDone(date, id, done);
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[grooming] complete error:", err);
+    res.status(502).json({ error: "grooming_complete_failed" });
   }
 });

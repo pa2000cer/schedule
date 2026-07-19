@@ -21,6 +21,7 @@
         <div class="topbar">
           <span class="account-email" id="account-email"></span>
           <div class="topbar-actions">
+            <button class="settings-link" id="new-event-btn" type="button">+ New</button>
             <button class="settings-link" id="settings-btn" type="button">&#9881; Settings</button>
             <a class="signout-link" id="signout-link" href="/auth/logout">Sign out</a>
           </div>
@@ -51,6 +52,43 @@
           <span id="progress-text">0 of 0 tasks done</span>
           <button class="reset-btn" id="reset-btn">Reset today's checks</button>
         </footer>
+      </div>
+
+      <!-- Event editor modal (T29): create / edit / delete an appointment or task. -->
+      <div class="settings-modal" id="event-modal" hidden>
+        <div class="settings-card">
+          <div class="settings-head">
+            <h2 id="event-modal-title">New event</h2>
+            <button class="settings-close" id="event-close" type="button" aria-label="Close">&times;</button>
+          </div>
+          <label class="field"><span>Title</span>
+            <input type="text" id="ev-title" placeholder="Title" /></label>
+          <div class="sched-row"><span>Type</span>
+            <div class="seg" id="ev-type">
+              <button type="button" data-kind="appointment">Appointment</button>
+              <button type="button" data-kind="task">Task</button>
+            </div>
+          </div>
+          <div class="sched-row"><span>All day</span>
+            <button class="switch" id="ev-allday" type="button" aria-label="Toggle all day"></button></div>
+          <label class="field"><span>Date</span><input type="date" id="ev-date" /></label>
+          <div class="ev-times">
+            <label class="field"><span>Start</span><input type="time" id="ev-start" /></label>
+            <label class="field"><span>End</span><input type="time" id="ev-end" /></label>
+          </div>
+          <label class="field ev-loc"><span>Location</span><input type="text" id="ev-location" /></label>
+          <div class="sched-row ev-done"><span>Done</span>
+            <button class="switch" id="ev-done" type="button" aria-label="Toggle done"></button></div>
+          <label class="field"><span>Notes</span><textarea id="ev-notes" rows="2"></textarea></label>
+          <div class="ev-recurring-note settings-sub" id="ev-recurring-note" hidden>
+            This is a repeating event — changes apply to this occurrence.
+          </div>
+          <div class="settings-actions">
+            <button class="sync-now-btn" id="ev-save" type="button">Save</button>
+            <button class="btn-danger" id="ev-delete" type="button" hidden>Delete</button>
+            <span class="settings-note" id="ev-note"></span>
+          </div>
+        </div>
       </div>
 
       <!-- Sync settings modal (T27): which Google calendars to sync + Sync now. -->

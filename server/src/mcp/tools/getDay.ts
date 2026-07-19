@@ -26,6 +26,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { listDayEvents } from "../../calendar/calendar";
 import { getGroomingTasks } from "../../grooming/schedule";
+import { getGroomingDone, groomingId } from "../../grooming/completion";
 import { getCalendarId, getTimeZone, jsonResult, errorResult } from "./context";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -59,7 +60,11 @@ export function registerGetDayTool(server: McpServer): void {
         const tasks = items
           .filter((i) => i.kind === "task")
           .map((i) => ({ ...i, done: i.done ?? false }));
-        const grooming = getGroomingTasks(localDateFromStr(date));
+        const doneSet = await getGroomingDone(date);
+        const grooming = getGroomingTasks(localDateFromStr(date)).map((g) => {
+          const id = groomingId(g.time, g.title);
+          return { ...g, id, done: doneSet.has(id) };
+        });
         return jsonResult({ date, appointments, tasks, grooming });
       } catch (err) {
         return errorResult(err instanceof Error ? err.message : String(err));
