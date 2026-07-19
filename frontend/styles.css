@@ -138,6 +138,29 @@ h1 {
   margin: 20px 0 8px;
   padding-left: 2px;
 }
+
+/* ---- Compact list density (opt-in via Settings; toggles body.compact) ---- */
+.compact #panel .item {
+  padding: 7px 12px;
+  margin-bottom: 5px;
+  gap: 10px;
+  border-radius: 8px;
+}
+.compact #panel .item-title {
+  font-size: 13.5px;
+}
+.compact #panel .item-time,
+.compact #panel .item-note {
+  font-size: 11px;
+  margin-top: 1px;
+}
+.compact #panel .box {
+  width: 18px;
+  height: 18px;
+}
+.compact #panel .section-label {
+  margin: 12px 0 5px;
+}
 .section-label:first-child {
   margin-top: 0;
 }

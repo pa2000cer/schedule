@@ -557,6 +557,29 @@
     schedEnd: document.getElementById('sched-end'),
     schedSave: document.getElementById('sched-save'),
     schedNote: document.getElementById('sched-note'),
+    compactToggle: document.getElementById('compact-toggle'),
+  };
+
+  // Compact-list display preference (per-device, persisted in localStorage).
+  function applyCompact(on) {
+    document.body.classList.toggle('compact', on);
+    settings.compactToggle.classList.toggle('on', on);
+  }
+  applyCompact((function () {
+    try {
+      return localStorage.getItem('compactList') === '1';
+    } catch (e) {
+      return false;
+    }
+  })());
+  settings.compactToggle.onclick = () => {
+    const on = !document.body.classList.contains('compact');
+    applyCompact(on);
+    try {
+      localStorage.setItem('compactList', on ? '1' : '0');
+    } catch (e) {
+      /* ignore storage errors */
+    }
   };
 
   function openSettings() {
