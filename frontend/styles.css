@@ -312,21 +312,27 @@ h1 {
 }
 
 /* ---- Tags ---- */
-/* pills shown on event rows */
+/* small pills on the RIGHT side of an event row */
 .item-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 5px;
+  gap: 4px;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  align-content: center;
+  margin-left: 8px;
+  max-width: 42%;
 }
 .tag {
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--accent);
   background: var(--accent-dim);
   border-radius: 999px;
-  padding: 2px 8px;
+  padding: 1px 7px;
+  white-space: nowrap;
+  line-height: 1.5;
 }
 .ultra #panel .item-tags {
   display: none;

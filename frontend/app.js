@@ -420,7 +420,8 @@
         '<div class="item-title">' + escapeHtml(item.title) + '</div>' +
         (item.time ? '<div class="item-time">' + escapeHtml(item.time) + '</div>' : '') +
         (item.note ? '<div class="item-note">' + escapeHtml(item.note) + '</div>' : '') +
-        '</div>';
+        '</div>' +
+        tagsHtml(item);
       row.onclick = () => openEventModal(item);
       return row;
     }
@@ -434,8 +435,8 @@
       '<div class="item-title">' + escapeHtml(item.title) + '</div>' +
       (item.time ? '<div class="item-time">' + escapeHtml(item.time) + '</div>' : '') +
       (item.note ? '<div class="item-note">' + escapeHtml(item.note) + '</div>' : '') +
-      tagsHtml(item) +
-      '</div>';
+      '</div>' +
+      tagsHtml(item);
     if (item.grooming) {
       // Grooming routine: whole row toggles the in-routine checkmark.
       row.onclick = () => toggleTask(day, item);
