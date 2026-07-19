@@ -253,6 +253,7 @@
     resetBtn: document.getElementById('reset-btn'),
     prevBtn: document.getElementById('prev-day'),
     nextBtn: document.getElementById('next-day'),
+    todayBtn: document.getElementById('today-btn'),
   };
 
   function checkSvg() {
@@ -282,6 +283,7 @@
   function renderDayTabs(date) {
     el.daytabs.innerHTML = '';
     // A week of pills centered on the selected day.
+    let activeTab = null;
     for (let i = -3; i <= 3; i++) {
       const d = addDays(date, i);
       const { done, total } = taskCounts(d);
@@ -294,6 +296,16 @@
       tab.innerHTML = label + '<span class="count">' + done + '/' + total + '</span>';
       tab.onclick = () => selectDay(d);
       el.daytabs.appendChild(tab);
+      if (isActive) activeTab = tab;
+    }
+
+    // Keep the selected pill centered. The strip is a fixed 7-day window on the
+    // selected day and rebuilds whenever a neighbor's counts load (which resets
+    // scrollLeft to 0), so re-center on every render. offsetLeft is relative to
+    // .daytabs (position:relative), so this math is exact; scrollLeft clamps to
+    // the valid range automatically.
+    if (activeTab) {
+      el.daytabs.scrollLeft = activeTab.offsetLeft - (el.daytabs.clientWidth - activeTab.offsetWidth) / 2;
     }
   }
 
@@ -406,6 +418,8 @@
     renderDayTabs(selected);
     renderPanel(selected, day);
     renderFooter(selected, day);
+    // "Go to Today" button appears only when we've navigated off today.
+    el.todayBtn.hidden = dayOffset(selected, TODAY) === 0;
   }
 
   function selectDay(d) {
@@ -416,6 +430,7 @@
 
   el.prevBtn.onclick = () => selectDay(addDays(selected, -1));
   el.nextBtn.onclick = () => selectDay(addDays(selected, 1));
+  el.todayBtn.onclick = () => selectDay(TODAY);
   el.resetBtn.onclick = () => {
     const day = getDay(selected);
     state[day.dateKey] = {};
@@ -481,6 +496,52 @@
   });
 
   // ---------------------------------------------------------------------
+  // Swipe navigation: swipe left → next day, right → previous day.
+  // The selected day always renders as the centered pill (renderDayTabs).
+  // ---------------------------------------------------------------------
+  let touchX = 0;
+  let touchY = 0;
+  let tracking = false;
+
+  gate.appView.addEventListener(
+    'touchstart',
+    (e) => {
+      // Ignore swipes that start on the scrollable day strip, inputs, or the modal.
+      if (
+        e.touches.length !== 1 ||
+        (e.target.closest &&
+          (e.target.closest('.daytabs') ||
+            e.target.closest('.ask-bar') ||
+            e.target.closest('input') ||
+            e.target.closest('.settings-modal')))
+      ) {
+        tracking = false;
+        return;
+      }
+      touchX = e.touches[0].clientX;
+      touchY = e.touches[0].clientY;
+      tracking = true;
+    },
+    { passive: true }
+  );
+
+  gate.appView.addEventListener(
+    'touchend',
+    (e) => {
+      if (!tracking) return;
+      tracking = false;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - touchX;
+      const dy = t.clientY - touchY;
+      // Horizontal swipe: significant X move, and clearly more horizontal than vertical.
+      if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+        selectDay(addDays(selected, dx < 0 ? 1 : -1));
+      }
+    },
+    { passive: true }
+  );
+
+  // ---------------------------------------------------------------------
   // Sync settings modal (T27): which Google calendars to sync + Sync now.
   // ---------------------------------------------------------------------
   const settings = {
@@ -490,11 +551,18 @@
     cals: document.getElementById('settings-cals'),
     syncBtn: document.getElementById('sync-now-btn'),
     note: document.getElementById('settings-note'),
+    schedEnabled: document.getElementById('sched-enabled'),
+    schedInterval: document.getElementById('sched-interval'),
+    schedStart: document.getElementById('sched-start'),
+    schedEnd: document.getElementById('sched-end'),
+    schedSave: document.getElementById('sched-save'),
+    schedNote: document.getElementById('sched-note'),
   };
 
   function openSettings() {
     settings.modal.hidden = false;
     settings.note.textContent = '';
+    settings.schedNote.textContent = '';
     settings.cals.innerHTML = '<div class="empty-state">Loading…</div>';
     fetch('/api/sync/calendars')
       .then((r) => r.json())
@@ -502,7 +570,66 @@
       .catch(() => {
         settings.cals.innerHTML = '<div class="empty-state">Could not load calendars.</div>';
       });
+    loadSchedule();
   }
+
+  function hm(h, m) {
+    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+  }
+
+  function loadSchedule() {
+    fetch('/api/sync/schedule')
+      .then((r) => r.json())
+      .then((data) => {
+        const s = (data && data.schedule) || {};
+        settings.schedEnabled.classList.toggle('on', !!s.enabled);
+        settings.schedInterval.value = s.intervalMinutes != null ? s.intervalMinutes : 10;
+        settings.schedStart.value = hm(s.startHour != null ? s.startHour : 7, s.startMinute || 0);
+        settings.schedEnd.value = hm(s.endHour != null ? s.endHour : 22, s.endMinute || 0);
+        if (s.lastRunAtMs) {
+          settings.schedNote.textContent = 'Last auto-sync: ' + new Date(s.lastRunAtMs).toLocaleString();
+        }
+      })
+      .catch(() => {});
+  }
+
+  function saveSchedule() {
+    const startParts = (settings.schedStart.value || '07:00').split(':');
+    const endParts = (settings.schedEnd.value || '22:00').split(':');
+    const body = {
+      enabled: settings.schedEnabled.classList.contains('on'),
+      intervalMinutes: parseInt(settings.schedInterval.value, 10) || 10,
+      startHour: parseInt(startParts[0], 10) || 0,
+      startMinute: parseInt(startParts[1], 10) || 0,
+      endHour: parseInt(endParts[0], 10) || 0,
+      endMinute: parseInt(endParts[1], 10) || 0,
+    };
+    settings.schedSave.disabled = true;
+    settings.schedNote.textContent = 'Saving…';
+    fetch('/api/sync/schedule', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+      .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+      .then(({ ok, data }) => {
+        const s = (data && data.schedule) || {};
+        settings.schedNote.textContent = ok
+          ? s.enabled
+            ? 'Saved — every ' + s.intervalMinutes + ' min, ' + hm(s.startHour, s.startMinute) + '–' + hm(s.endHour, s.endMinute)
+            : 'Saved — auto-sync off'
+          : 'Save failed.';
+      })
+      .catch(() => {
+        settings.schedNote.textContent = 'Network error.';
+      })
+      .finally(() => {
+        settings.schedSave.disabled = false;
+      });
+  }
+
+  settings.schedEnabled.onclick = () => settings.schedEnabled.classList.toggle('on');
+  settings.schedSave.onclick = saveSchedule;
 
   function closeSettings() {
     settings.modal.hidden = true;

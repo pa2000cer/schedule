@@ -13,6 +13,7 @@ import { Router, type Request, type Response } from "express";
 import { isSyncConfigured } from "../sync/composio";
 import { refreshCalendars, setCalendarSync } from "../sync/settings";
 import { syncNow } from "../sync/inbound";
+import { getScheduleSettings, setScheduleSettings } from "../sync/schedule";
 
 export const syncRouter = Router();
 
@@ -53,6 +54,37 @@ syncRouter.post("/api/sync/calendar", async (req: Request, res: Response) => {
     // eslint-disable-next-line no-console
     console.error("[sync] set calendar error:", err);
     res.status(502).json({ error: "sync_set_failed", detail: err instanceof Error ? err.message : undefined });
+  }
+});
+
+syncRouter.get("/api/sync/schedule", async (_req: Request, res: Response) => {
+  try {
+    const schedule = await getScheduleSettings();
+    res.status(200).json({ configured: isSyncConfigured(), schedule });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[sync] get schedule error:", err);
+    res.status(502).json({ error: "sync_schedule_failed" });
+  }
+});
+
+syncRouter.post("/api/sync/schedule", async (req: Request, res: Response) => {
+  try {
+    const b = req.body ?? {};
+    const schedule = await setScheduleSettings({
+      enabled: b.enabled,
+      intervalMinutes: b.intervalMinutes,
+      startHour: b.startHour,
+      startMinute: b.startMinute,
+      endHour: b.endHour,
+      endMinute: b.endMinute,
+      timeZone: b.timeZone,
+    });
+    res.status(200).json({ ok: true, schedule });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[sync] set schedule error:", err);
+    res.status(502).json({ error: "sync_schedule_set_failed" });
   }
 });
 

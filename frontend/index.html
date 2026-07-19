@@ -33,6 +33,7 @@
         </header>
 
         <div class="daynav">
+          <button class="today-btn" id="today-btn" type="button" hidden>&#8982; Today</button>
           <button class="nav-arrow" id="prev-day" aria-label="Previous day">&#8249;</button>
           <div class="daytabs" id="daytabs"></div>
           <button class="nav-arrow" id="next-day" aria-label="Next day">&#8250;</button>
@@ -67,6 +68,24 @@
           <div class="settings-actions">
             <button class="sync-now-btn" id="sync-now-btn" type="button">Sync now</button>
             <span class="settings-note" id="settings-note"></span>
+          </div>
+
+          <div class="section-label">Automatic sync</div>
+          <div class="sched-grid">
+            <div class="sched-row">
+              <span>Auto-sync from Google</span>
+              <button class="switch" id="sched-enabled" type="button" aria-label="Toggle auto-sync"></button>
+            </div>
+            <label class="sched-row"><span>Every (minutes)</span>
+              <input type="number" id="sched-interval" min="1" max="1440" step="1" /></label>
+            <label class="sched-row"><span>From</span>
+              <input type="time" id="sched-start" /></label>
+            <label class="sched-row"><span>To</span>
+              <input type="time" id="sched-end" /></label>
+          </div>
+          <div class="settings-actions">
+            <button class="sync-now-btn" id="sched-save" type="button">Save schedule</button>
+            <span class="settings-note" id="sched-note"></span>
           </div>
         </div>
       </div>

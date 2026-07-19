@@ -9,6 +9,7 @@ import { dayRouter } from "./routes/day";
 import { syncRouter } from "./routes/sync";
 import { requireAuth } from "./auth/requireAuth";
 import { mcpRouter } from "./mcp/route";
+import { syncCronRouter } from "./routes/syncCron";
 
 const app = express();
 const port = Number(process.env.PORT) || 8080;
@@ -24,6 +25,7 @@ app.use(authRouter); // /auth/* (public) and /api/me (self-protected by requireA
 // cookie-based session guard below. Mounted at the app root (`/mcp`, not
 // `/api/mcp`) and before the /api guard so it is never subject to it.
 app.use(mcpRouter); // POST/GET/DELETE /mcp (self-protected by requireMcpAuth)
+app.use(syncCronRouter); // POST /internal/sync/tick (self-protected by requireMcpAuth) — Cloud Scheduler heartbeat
 
 // Everything under /api/* (except the auth-owned /api/me above) requires a
 // valid, allowlisted session. Mounted AFTER authRouter so /api/me resolves

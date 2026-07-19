@@ -23,7 +23,7 @@ export interface SyncResult {
 }
 
 /** Import new Google events (from enabled calendars) into Firestore. */
-export async function importFromGoogle(opts?: { timeMin?: string; timeMax?: string }): Promise<SyncResult> {
+export async function importFromGoogle(opts?: { timeMin?: string; timeMax?: string; updatedMin?: string }): Promise<SyncResult> {
   if (!isSyncConfigured()) return { imported: 0, skipped: 0, calendars: 0 };
   // Use the same internal Firestore calendar the store writes to, so outbound-mirrored
   // events are correctly recognized here (no cross-calendar duplicate — BUG 1 fix).
@@ -39,7 +39,7 @@ export async function importFromGoogle(opts?: { timeMin?: string; timeMax?: stri
   for (const gcalId of calIds) {
     let events;
     try {
-      events = await gcalListEvents(gcalId, { timeMin, timeMax, singleEvents: false });
+      events = await gcalListEvents(gcalId, { timeMin, timeMax, updatedMin: opts?.updatedMin, singleEvents: false });
     } catch (err) {
       console.error(`[sync] listEvents failed for ${gcalId}:`, err instanceof Error ? err.message : err);
       continue;
