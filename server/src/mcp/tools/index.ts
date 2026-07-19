@@ -22,6 +22,7 @@ import { registerTaskTools } from "./tasks";
 import { registerRecurringTools } from "./recurring";
 import { registerGroomingTools } from "./grooming";
 import { registerSyncTools } from "./sync";
+import { registerTagTools } from "./tags";
 
 export function registerTools(server: McpServer): void {
   registerPingTool(server);
@@ -31,4 +32,5 @@ export function registerTools(server: McpServer): void {
   registerRecurringTools(server);
   registerGroomingTools(server);
   registerSyncTools(server);
+  registerTagTools(server);
 }

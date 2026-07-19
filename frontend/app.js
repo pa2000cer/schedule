@@ -125,6 +125,7 @@
       location: a.location || '',
       notes: a.notes || '',
       recurring: !!a.recurring,
+      tags: a.tags || [],
       editable: true,
     }));
     const tasks = [];
@@ -141,6 +142,7 @@
         end: t.end,
         notes: t.notes || '',
         recurring: !!t.recurring,
+        tags: t.tags || [],
         editable: true,
       });
     });
@@ -217,6 +219,62 @@
   // ---------------------------------------------------------------------
 
   const state = {}; // state[dateKey][taskId] = true/false override
+
+  // Tags: the available tag list + the active filter (tag names).
+  let availableTags = [];
+  const activeTagFilter = new Set();
+
+  function passesTagFilter(item) {
+    if (!activeTagFilter.size) return true;
+    return Array.isArray(item.tags) && item.tags.some((t) => activeTagFilter.has(t));
+  }
+
+  function loadTags() {
+    return fetch('/api/tags')
+      .then((r) => r.json())
+      .then((d) => {
+        availableTags = d.tags || [];
+        renderTagFilter();
+      })
+      .catch(() => {});
+  }
+
+  function renderTagFilter() {
+    const bar = document.getElementById('tag-filter');
+    if (!bar) return;
+    if (!availableTags.length) {
+      bar.hidden = true;
+      bar.innerHTML = '';
+      return;
+    }
+    bar.hidden = false;
+    bar.innerHTML = '';
+    availableTags.forEach((t) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'tag-pill' + (activeTagFilter.has(t) ? ' active' : '');
+      b.textContent = t;
+      b.onclick = () => {
+        if (activeTagFilter.has(t)) activeTagFilter.delete(t);
+        else activeTagFilter.add(t);
+        renderTagFilter();
+        render();
+      };
+      bar.appendChild(b);
+    });
+    if (activeTagFilter.size) {
+      const c = document.createElement('button');
+      c.type = 'button';
+      c.className = 'tag-pill clear';
+      c.textContent = '✕ Clear';
+      c.onclick = () => {
+        activeTagFilter.clear();
+        renderTagFilter();
+        render();
+      };
+      bar.appendChild(c);
+    }
+  }
 
   function effectiveDone(day, task) {
     const override = state[day.dateKey] && state[day.dateKey][task.id];
@@ -376,6 +434,7 @@
       '<div class="item-title">' + escapeHtml(item.title) + '</div>' +
       (item.time ? '<div class="item-time">' + escapeHtml(item.time) + '</div>' : '') +
       (item.note ? '<div class="item-note">' + escapeHtml(item.note) + '</div>' : '') +
+      tagsHtml(item) +
       '</div>';
     if (item.grooming) {
       // Grooming routine: whole row toggles the in-routine checkmark.
@@ -394,6 +453,15 @@
     return String(s).replace(/[&<>"']/g, (c) => (
       { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
     ));
+  }
+
+  function tagsHtml(item) {
+    if (!item.tags || !item.tags.length) return '';
+    return (
+      '<div class="item-tags">' +
+      item.tags.map((t) => '<span class="tag">' + escapeHtml(t) + '</span>').join('') +
+      '</div>'
+    );
   }
 
   function minutesToClock(min) {
@@ -421,9 +489,11 @@
     // Group appointments + timed/anytime tasks into Morning/Afternoon/Evening/Anytime.
     const buckets = { Morning: [], Afternoon: [], Evening: [], Anytime: [] };
     day.appointments.forEach((a) => {
+      if (!passesTagFilter(a)) return;
       buckets[bucketFor(timeToMinutes(a.time))].push({ kind: 'appointment', item: a, minutes: timeToMinutes(a.time) });
     });
     day.tasks.filter((t) => !t.tbd).forEach((t) => {
+      if (!passesTagFilter(t)) return;
       buckets[bucketFor(timeToMinutes(t.time))].push({ kind: 'task', item: t, minutes: timeToMinutes(t.time) });
     });
 
@@ -703,11 +773,33 @@
     done: document.getElementById('ev-done'),
     notes: document.getElementById('ev-notes'),
     recNote: document.getElementById('ev-recurring-note'),
+    tags: document.getElementById('ev-tags'),
     save: document.getElementById('ev-save'),
     del: document.getElementById('ev-delete'),
     note: document.getElementById('ev-note'),
     editingId: null,
+    selectedTags: new Set(),
   };
+
+  function renderEvTags() {
+    ev.tags.innerHTML = '';
+    if (!availableTags.length) {
+      ev.tags.innerHTML = '<span class="empty-hint">Add tags in Settings</span>';
+      return;
+    }
+    availableTags.forEach((t) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'tag-chip' + (ev.selectedTags.has(t) ? ' on' : '');
+      chip.textContent = t;
+      chip.onclick = () => {
+        if (ev.selectedTags.has(t)) ev.selectedTags.delete(t);
+        else ev.selectedTags.add(t);
+        chip.classList.toggle('on');
+      };
+      ev.tags.appendChild(chip);
+    });
+  }
 
   function evKind() {
     const active = ev.type.querySelector('button.active');
@@ -767,6 +859,8 @@
       ev.del.hidden = true;
       ev.recNote.hidden = true;
     }
+    ev.selectedTags = new Set(item && Array.isArray(item.tags) ? item.tags : []);
+    renderEvTags();
     evVisibility();
     ev.modal.hidden = false;
   }
@@ -799,6 +893,7 @@
       body.end = date + 'T' + en + ':00';
     }
     if (kind === 'appointment') body.location = ev.location.value;
+    body.tags = Array.from(ev.selectedTags);
     if (ev.editingId) body.id = ev.editingId;
 
     ev.save.disabled = true;
@@ -867,6 +962,73 @@
   });
   document.getElementById('new-event-btn').onclick = () => openEventModal(null);
 
+  // ---------------------------------------------------------------------
+  // Tag management (Settings → Tags)
+  // ---------------------------------------------------------------------
+  function renderTagManage() {
+    const wrap = document.getElementById('tag-manage');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    if (!availableTags.length) {
+      wrap.innerHTML = '<span class="empty-hint">No tags yet.</span>';
+      return;
+    }
+    availableTags.forEach((t) => {
+      const chip = document.createElement('span');
+      chip.className = 'tag-chip';
+      chip.appendChild(document.createTextNode(t + ' '));
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.textContent = '×';
+      x.setAttribute('aria-label', 'Remove ' + t);
+      x.onclick = () => removeTagUi(t);
+      chip.appendChild(x);
+      wrap.appendChild(chip);
+    });
+  }
+  function addTagUi() {
+    const input = document.getElementById('tag-add-input');
+    const name = (input.value || '').trim();
+    if (!name) return;
+    fetch('/api/tags/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.tags) {
+          availableTags = d.tags;
+          input.value = '';
+          renderTagManage();
+          renderTagFilter();
+        }
+      })
+      .catch(() => {});
+  }
+  function removeTagUi(name) {
+    fetch('/api/tags/remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.tags) {
+          availableTags = d.tags;
+          activeTagFilter.delete(name);
+          renderTagManage();
+          renderTagFilter();
+          render();
+        }
+      })
+      .catch(() => {});
+  }
+  document.getElementById('tag-add-btn').onclick = addTagUi;
+  document.getElementById('tag-add-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addTagUi();
+  });
+
   function openSettings() {
     settings.modal.hidden = false;
     settings.note.textContent = '';
@@ -879,6 +1041,7 @@
         settings.cals.innerHTML = '<div class="empty-state">Could not load calendars.</div>';
       });
     loadSchedule();
+    loadTags().then(() => renderTagManage());
   }
 
   function hm(h, m) {
@@ -1031,6 +1194,7 @@
     gate.accountEmail.textContent = email || '';
     render(); // immediate: shows loading state
     refreshVisible(false); // load the selected day + tab neighbors from the server
+    loadTags(); // available tags for the filter bar, row pills, and modal chips
   }
 
   fetch('/api/me')

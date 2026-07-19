@@ -40,6 +40,8 @@
           <button class="nav-arrow" id="next-day" aria-label="Next day">&#8250;</button>
         </div>
 
+        <div class="tag-filter" id="tag-filter" hidden></div>
+
         <div id="panel"></div>
 
         <div class="ask-bar">
@@ -79,6 +81,8 @@
           <label class="field ev-loc"><span>Location</span><input type="text" id="ev-location" /></label>
           <div class="sched-row ev-done"><span>Done</span>
             <button class="switch" id="ev-done" type="button" aria-label="Toggle done"></button></div>
+          <div class="field"><span>Tags</span>
+            <div class="tag-chips" id="ev-tags"></div></div>
           <label class="field"><span>Notes</span><textarea id="ev-notes" rows="2"></textarea></label>
           <div class="ev-recurring-note settings-sub" id="ev-recurring-note" hidden>
             This is a repeating event — changes apply to this occurrence.
@@ -135,6 +139,13 @@
           <div class="settings-actions">
             <button class="sync-now-btn" id="sched-save" type="button">Save schedule</button>
             <span class="settings-note" id="sched-note"></span>
+          </div>
+
+          <div class="section-label">Tags</div>
+          <div class="tag-manage" id="tag-manage"></div>
+          <div class="tag-add-row">
+            <input type="text" id="tag-add-input" placeholder="New tag&hellip;" />
+            <button class="ask-btn" id="tag-add-btn" type="button">Add</button>
           </div>
         </div>
       </div>

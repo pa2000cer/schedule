@@ -8,6 +8,7 @@ import { assistantRouter } from "./routes/assistant";
 import { dayRouter } from "./routes/day";
 import { syncRouter } from "./routes/sync";
 import { eventRouter } from "./routes/event";
+import { tagsRouter } from "./routes/tags";
 import { requireAuth } from "./auth/requireAuth";
 import { mcpRouter } from "./mcp/route";
 import { syncCronRouter } from "./routes/syncCron";
@@ -36,6 +37,7 @@ app.use(assistantRouter); // POST /api/assistant (T12) — protected by the requ
 app.use(dayRouter); // GET /api/day, POST /api/task/complete (T12) — protected by requireAuth above
 app.use(syncRouter); // GET/POST /api/sync/* (T27) — protected by requireAuth above
 app.use(eventRouter); // POST /api/event/* (T29) — protected by requireAuth above
+app.use(tagsRouter); // GET/POST /api/tags* (T30) — protected by requireAuth above
 
 // Static frontend (T11): serves frontend/index.html at "/" plus app.js/
 // styles.css. Public — the page itself calls GET /api/me client-side and

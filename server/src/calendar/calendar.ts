@@ -74,6 +74,8 @@ export interface CalendarItem {
   recurringEventId?: string;
   /** RRULE lines present on a recurring series MASTER (absent on instances). */
   recurrence?: string[];
+  /** User tags (e.g. family-member names). Firestore-only; not mirrored to Google. */
+  tags?: string[];
   source: "firestore";
   /** The stored Firestore document (opaque), for callers that need extra fields (e.g. googleEventId). */
   raw?: Record<string, unknown>;
@@ -90,6 +92,7 @@ interface OverrideDoc {
   location?: string;
   notes?: string;
   done?: boolean;
+  tags?: string[];
   cancelled?: boolean;
 }
 
@@ -111,6 +114,7 @@ interface EventDoc {
   recurrence: string[] | null;
   exdates: string[];
   overrides: Record<string, OverrideDoc>;
+  tags?: string[];
   /** Google Calendar event id + calendar id, set by the sync layer (T23); undefined until mirrored. */
   googleEventId?: string;
   googleCalendarId?: string;
@@ -430,6 +434,7 @@ function docToItem(id: string, doc: EventDoc): CalendarItem {
     recurring: doc.isMaster,
     recurringEventId: undefined,
     recurrence: doc.isMaster && doc.recurrence ? doc.recurrence : undefined,
+    tags: doc.tags ?? [],
     source: "firestore",
     raw: { ...doc, googleEventId: doc.googleEventId },
   };
@@ -469,6 +474,8 @@ export interface CreateEventInput {
   recurrence?: string[];
   /** Task done-state. */
   status?: "done" | "todo";
+  /** User tags. */
+  tags?: string[];
 }
 
 /** Create a new event/task/recurring-master document. */
@@ -502,6 +509,7 @@ export async function createEvent(input: CreateEventInput, calendarId = "primary
     recurrence: isMaster ? input.recurrence! : null,
     exdates: [],
     overrides: {},
+    tags: input.tags ?? [],
     createdAt: now,
     updatedAt: now,
   };
@@ -605,6 +613,8 @@ export interface UpdateEventPatch {
   recurrence?: string[];
   /** Set task done-state. */
   status?: "done" | "todo";
+  /** Replace the event's tags. */
+  tags?: string[];
 }
 
 /**
@@ -629,6 +639,7 @@ export async function updateEvent(id: string, patch: UpdateEventPatch, calendarI
     if (patch.location !== undefined) override.location = patch.location;
     if (patch.notes !== undefined) override.notes = patch.notes;
     if (patch.status !== undefined) override.done = patch.status === "done";
+    if (patch.tags !== undefined) override.tags = patch.tags;
     await masterRef.update({
       [`overrides.${instance.instanceKey}`]: stripUndefined(override),
       updatedAt: Timestamp.now(),
@@ -652,6 +663,7 @@ export async function updateEvent(id: string, patch: UpdateEventPatch, calendarI
   if (patch.start !== undefined) next.start = patch.start;
   if (patch.end !== undefined) next.end = patch.end;
   if (patch.status !== undefined) next.done = patch.status === "done";
+  if (patch.tags !== undefined) next.tags = patch.tags;
   if (patch.recurrence !== undefined) {
     next.recurrence = patch.recurrence.length > 0 ? patch.recurrence : null;
     next.isMaster = patch.recurrence.length > 0;
@@ -813,6 +825,7 @@ function buildInstanceItem(masterId: string, master: EventDoc, instanceKey: stri
     recurring: true,
     recurringEventId: masterId,
     recurrence: undefined,
+    tags: override?.tags ?? master.tags ?? [],
     source: "firestore",
     raw: undefined,
   };

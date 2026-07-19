@@ -69,6 +69,7 @@ eventRouter.post("/api/event/create", async (req: Request, res: Response) => {
         status: isTask ? (b.done ? "done" : "todo") : undefined,
       };
     }
+    if (Array.isArray(b.tags)) input.tags = b.tags.filter((t: unknown) => typeof t === "string");
     const item = await createEvent(input);
     res.status(200).json({ ok: true, item });
   } catch (err) {
@@ -105,6 +106,7 @@ eventRouter.post("/api/event/update", async (req: Request, res: Response) => {
       patch.timeZone = tz();
     }
     if (typeof b.done === "boolean") patch.status = b.done ? "done" : "todo";
+    if (Array.isArray(b.tags)) patch.tags = b.tags.filter((t: unknown) => typeof t === "string");
     const item = await updateEvent(id, patch);
     res.status(200).json({ ok: true, item });
   } catch (err) {
