@@ -50,7 +50,12 @@ app.use(tagsRouter); // GET/POST /api/tags* (T30) — protected by requireAuth a
 // /app, which the Dockerfile COPYs frontend into as ./frontend) rather than
 // __dirname, since __dirname differs between the tsx dev entrypoint
 // (server/src) and the compiled dist/index.js (dist).
-app.use(express.static(path.join(process.cwd(), "frontend")));
+app.use(
+  express.static(path.join(process.cwd(), "frontend"), {
+    // Revalidate on every load so UI updates show without a hard refresh.
+    setHeaders: (res) => res.setHeader("Cache-Control", "no-cache"),
+  }),
+);
 
 app.listen(port, () => {
   // eslint-disable-next-line no-console

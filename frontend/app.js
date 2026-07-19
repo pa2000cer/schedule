@@ -861,7 +861,8 @@
       ev.recNote.hidden = true;
     }
     ev.selectedTags = new Set(item && Array.isArray(item.tags) ? item.tags : []);
-    renderEvTags();
+    if (!availableTags.length) loadTags().then(renderEvTags);
+    else renderEvTags();
     evVisibility();
     ev.modal.hidden = false;
   }
