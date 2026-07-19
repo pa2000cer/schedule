@@ -161,6 +161,103 @@ h1 {
 .compact #panel .section-label {
   margin: 12px 0 5px;
 }
+
+/* ---- Ultra density: everything on one row, minimal height ---- */
+.ultra #panel .item {
+  padding: 4px 10px;
+  margin-bottom: 3px;
+  gap: 8px;
+  border-radius: 7px;
+}
+.ultra #panel .item-body {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.ultra #panel .item-time {
+  order: -1; /* time before the title */
+  flex: 0 0 auto;
+  font-size: 11px;
+  margin-top: 0;
+  min-width: 52px;
+}
+.ultra #panel .item-title {
+  font-size: 13px;
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ultra #panel .item-note {
+  display: none; /* one row only */
+}
+.ultra #panel .box {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+}
+.ultra #panel .box svg {
+  width: 10px;
+  height: 10px;
+}
+.ultra #panel .section-label {
+  margin: 8px 0 3px;
+}
+
+/* ---- "Now" time marker in the day list ---- */
+.now-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 2px;
+}
+.now-dot {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #e0685f;
+}
+.now-label {
+  flex: 0 0 auto;
+  color: #e0685f;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.now-line::after {
+  content: '';
+  flex: 1;
+  height: 2px;
+  border-radius: 2px;
+  background: #e0685f;
+  opacity: 0.8;
+}
+
+/* ---- Segmented control (list density) ---- */
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+.seg button {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.seg button.active {
+  background: var(--accent);
+  color: #1a1206;
+}
 .section-label:first-child {
   margin-top: 0;
 }

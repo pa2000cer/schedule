@@ -355,6 +355,25 @@
     ));
   }
 
+  function minutesToClock(min) {
+    let hours = Math.floor(min / 60);
+    const minutes = min % 60;
+    const period = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+    return hours + ':' + String(minutes).padStart(2, '0') + ' ' + period;
+  }
+
+  // The "now" marker row: a dot + current time + a horizontal rule.
+  function buildNowLine(min) {
+    const div = document.createElement('div');
+    div.className = 'now-line';
+    div.innerHTML =
+      '<span class="now-dot"></span>' +
+      '<span class="now-label">' + escapeHtml(minutesToClock(min)) + '</span>';
+    return div;
+  }
+
   function renderPanel(date, day) {
     el.panel.innerHTML = '';
 
@@ -369,10 +388,33 @@
 
     let renderedAny = false;
 
+    // "Now" line (only when viewing today, and there's at least one timed item):
+    // a labeled horizontal marker placed between what has passed and what's next.
+    const isToday = dayOffset(date, TODAY) === 0;
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const allTimed = [];
+    BUCKET_ORDER.forEach((b) => buckets[b].forEach((e) => {
+      if (e.minutes !== null) allTimed.push(e.minutes);
+    }));
+    allTimed.sort((a, b) => a - b);
+    const showNow = isToday && allTimed.length > 0;
+    const crossIndex = showNow ? allTimed.filter((m) => m <= nowMin).length : 0;
+    let appendedTimed = 0;
+    let nowPlaced = false;
+    function maybeNowLine() {
+      if (showNow && !nowPlaced && appendedTimed === crossIndex) {
+        el.panel.appendChild(buildNowLine(nowMin));
+        nowPlaced = true;
+      }
+    }
+
     BUCKET_ORDER.forEach((bucketName) => {
       const entries = buckets[bucketName];
       if (!entries.length) return;
       entries.sort((a, b) => (a.minutes || 0) - (b.minutes || 0));
+
+      maybeNowLine(); // boundary at the start of a bucket
 
       const label = document.createElement('div');
       label.className = 'section-label';
@@ -380,10 +422,14 @@
       el.panel.appendChild(label);
 
       entries.forEach((entry) => {
+        maybeNowLine(); // boundary between rows within a bucket
         el.panel.appendChild(buildRow(day, entry.kind, entry.item));
+        if (entry.minutes !== null) appendedTimed++;
       });
       renderedAny = true;
     });
+
+    maybeNowLine(); // now is after all of today's timed items
 
     const tbdTasks = day.tasks.filter((t) => t.tbd);
     if (tbdTasks.length) {
@@ -557,30 +603,44 @@
     schedEnd: document.getElementById('sched-end'),
     schedSave: document.getElementById('sched-save'),
     schedNote: document.getElementById('sched-note'),
-    compactToggle: document.getElementById('compact-toggle'),
+    densitySeg: document.getElementById('density-seg'),
   };
 
-  // Compact-list display preference (per-device, persisted in localStorage).
-  function applyCompact(on) {
-    document.body.classList.toggle('compact', on);
-    settings.compactToggle.classList.toggle('on', on);
+  // List-density preference (per-device): 'normal' | 'compact' | 'ultra'.
+  function readDensity() {
+    try {
+      const d = localStorage.getItem('listDensity');
+      if (d === 'normal' || d === 'compact' || d === 'ultra') return d;
+      if (localStorage.getItem('compactList') === '1') return 'compact'; // migrate old pref
+    } catch (e) {
+      /* ignore */
+    }
+    return 'normal';
   }
-  applyCompact((function () {
-    try {
-      return localStorage.getItem('compactList') === '1';
-    } catch (e) {
-      return false;
-    }
-  })());
-  settings.compactToggle.onclick = () => {
-    const on = !document.body.classList.contains('compact');
-    applyCompact(on);
-    try {
-      localStorage.setItem('compactList', on ? '1' : '0');
-    } catch (e) {
-      /* ignore storage errors */
-    }
-  };
+  function applyDensity(d) {
+    document.body.classList.remove('compact', 'ultra');
+    if (d === 'compact' || d === 'ultra') document.body.classList.add(d);
+    settings.densitySeg.querySelectorAll('button').forEach((b) => {
+      b.classList.toggle('active', b.getAttribute('data-density') === d);
+    });
+  }
+  applyDensity(readDensity());
+  settings.densitySeg.querySelectorAll('button').forEach((b) => {
+    b.onclick = () => {
+      const d = b.getAttribute('data-density');
+      applyDensity(d);
+      try {
+        localStorage.setItem('listDensity', d);
+      } catch (e) {
+        /* ignore storage errors */
+      }
+    };
+  });
+
+  // Keep the "now" line advancing while the app is open (re-renders only on today).
+  setInterval(() => {
+    if (dayOffset(selected, TODAY) === 0) render();
+  }, 60000);
 
   function openSettings() {
     settings.modal.hidden = false;
