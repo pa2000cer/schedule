@@ -10,3 +10,16 @@ Thumbs.db
 bin/
 obj/
 *.log
+dist/
+build/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Env
+.env
+.env.local
+
+# Local OAuth test token (gitignored)
+.calendar-token

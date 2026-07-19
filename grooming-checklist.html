@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Weekly Grooming Checklist</title>
+<style>
+  :root{
+    --ink:#1a1d1f;
+    --panel:#232629;
+    --line:#33373a;
+    --paper:#eceae4;
+    --muted:#9a9d9f;
+    --accent:#c98a4b;
+    --accent-dim:#5a4530;
+    --done:#5f8f6e;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height:100vh;
+    padding:24px 14px 60px;
+  }
+  .wrap{max-width:640px;margin:0 auto;}
+  header{margin-bottom:22px;}
+  .eyebrow{
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    font-weight:600;
+  }
+  h1{
+    font-size:26px;
+    margin:6px 0 4px;
+    font-weight:700;
+    letter-spacing:-0.01em;
+  }
+  .sub{color:var(--muted);font-size:13px;}
+
+  .daytabs{
+    display:flex;
+    overflow-x:auto;
+    gap:6px;
+    margin:20px 0 16px;
+    padding-bottom:4px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .daytabs::-webkit-scrollbar{display:none;}
+  .daytab{
+    flex:0 0 auto;
+    padding:8px 14px;
+    border-radius:999px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--muted);
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:all .15s ease;
+  }
+  .daytab.active{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:#1a1206;
+  }
+  .daytab .count{
+    display:inline-block;
+    margin-left:6px;
+    font-size:11px;
+    opacity:.75;
+  }
+
+  .day-panel{display:none;}
+  .day-panel.active{display:block;}
+
+  .section-label{
+    font-size:11px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin:20px 0 8px;
+    padding-left:2px;
+  }
+  .section-label:first-child{margin-top:0;}
+
+  .item{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:12px 14px;
+    margin-bottom:8px;
+    cursor:pointer;
+    transition:background .15s ease, border-color .15s ease;
+  }
+  .item:hover{border-color:#454a4e;}
+  .item.checked{
+    background:#1e2620;
+    border-color:var(--accent-dim);
+  }
+  .item.checked .item-title{
+    color:var(--muted);
+    text-decoration:line-through;
+    text-decoration-color:var(--done);
+  }
+
+  .box{
+    flex:0 0 auto;
+    width:20px;height:20px;
+    border-radius:6px;
+    border:2px solid #55595c;
+    display:flex;align-items:center;justify-content:center;
+    transition:all .15s ease;
+  }
+  .item.checked .box{
+    background:var(--done);
+    border-color:var(--done);
+  }
+  .box svg{width:12px;height:12px;opacity:0;transition:opacity .1s ease;}
+  .item.checked .box svg{opacity:1;}
+
+  .item-body{flex:1;min-width:0;}
+  .item-title{font-size:15px;font-weight:600;}
+  .item-time{font-size:12px;color:var(--accent);margin-top:2px;font-weight:600;}
+  .item-note{font-size:12px;color:var(--muted);margin-top:2px;}
+
+  .tbd{
+    border-style:dashed;
+    opacity:.7;
+  }
+
+  footer{
+    margin-top:28px;
+    padding-top:16px;
+    border-top:1px solid var(--line);
+    font-size:12px;
+    color:var(--muted);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .reset-btn{
+    background:none;
+    border:1px solid var(--line);
+    color:var(--muted);
+    font-size:12px;
+    padding:6px 12px;
+    border-radius:999px;
+    cursor:pointer;
+  }
+  .reset-btn:hover{border-color:var(--accent);color:var(--accent);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Grooming · Weekly Routine</div>
+    <h1>The Schedule</h1>
+    <div class="sub">Tap a day, then tap items to check them off.</div>
+  </header>
+
+  <div class="daytabs" id="daytabs"></div>
+  <div id="panels"></div>
+
+  <footer>
+    <span id="progress-text">0 of 0 done today</span>
+    <button class="reset-btn" id="reset-btn">Reset all checks</button>
+  </footer>
+</div>
+
+<script>
+const schedule = {
+  Sunday: [
+    {label:"AM", items:[
+      {t:"6:30 AM", title:"Daily skincare", note:"cleanse, moisturize, SPF"},
+      {t:"6:40 AM", title:"Shave head"},
+      {t:"6:45 AM", title:"Shave face, nose & ears"},
+      {t:"7:00 AM", title:"Pluck eyebrows"},
+    ]},
+    {label:"PM", items:[
+      {t:"8:30 PM", title:"Shave body"},
+      {t:"9:30 PM", title:"Daily skincare", note:"cleanse, moisturize"},
+    ]}
+  ],
+  Monday: [
+    {label:"AM", items:[
+      {t:"6:30 AM", title:"Daily skincare"},
+      {t:"6:40 AM", title:"Shave head"},
+      {t:"6:45 AM", title:"Shave face, nose & ears"},
+    ]},
+    {label:"PM", items:[
+      {t:"9:00 PM", title:"Whiten teeth"},
+      {t:"9:30 PM", title:"Daily skincare"},
+    ]}
+  ],
+  Tuesday: [
+    {label:"AM", items:[
+      {t:"6:30 AM", title:"Daily skincare"},
+      {t:"6:40 AM", title:"Shave head"},
+      {t:"6:45 AM", title:"Shave face, nose & ears"},
+    ]},
+    {label:"PM", items:[
+      {t:"8:00 PM", title:"Facial", note:"steam, mask, wash"},
+      {t:"9:30 PM", title:"Daily skincare"},
+    ]}
+  ],
+  Wednesday: [
+    {label:"AM", items:[
+      {t:"6:30 AM", title:"Daily skincare"},
+      {t:"6:40 AM", title:"Shave head"},
+      {t:"6:45 AM", title:"Shave face, nose & ears"},
+    ]},
+    {label:"PM", items:[
+      {t:"8:30 PM", title:"Shave body"},
+      {t:"9:30 PM", title:"Daily skincare"},
+    ]}
+  ],
+  Thursday: [
+    {label:"AM", items:[
+      {t:"6:30 AM", title:"Daily skincare"},
+      {t:"6:40 AM", title:"Shave head"},
+      {t:"6:45 AM", title:"Shave face, nose & ears"},
+    ]},
+    {label:"PM", items:[
+      {t:"9:30 PM", title:"Daily skincare"},
+    ]}
+  ],
+  Friday: [
+    {label:"AM", items:[
+      {t:"6:30 AM", title:"Daily skincare"},
+      {t:"6:40 AM", title:"Shave head"},
+      {t:"6:45 AM", title:"Shave face, nose & ears"},
+    ]},
+    {label:"PM", items:[
+      {t:"8:00 PM", title:"Facial", note:"steam, mask, wash"},
+      {t:"9:30 PM", title:"Daily skincare"},
+    ]}
+  ],
+  Saturday: [
+    {label:"AM", items:[
+      {t:"6:30 AM", title:"Daily skincare"},
+      {t:"6:40 AM", title:"Shave head"},
+      {t:"6:45 AM", title:"Shave face, nose & ears"},
+      {t:"8:00 AM", title:"Tend to feet", note:"1st & 3rd Saturday only", tbd:false, biweekly:true},
+    ]},
+    {label:"PM", items:[
+      {t:"9:30 PM", title:"Daily skincare"},
+    ]}
+  ],
+};
+
+// Not yet scheduled — frequency TBD
+const unscheduled = [
+  {title:"Tint eyebrows & lashes", note:"Frequency still TBD after initial phase — add once you've settled on a cadence."}
+];
+
+const days = Object.keys(schedule);
+const state = {}; // in-memory only, resets on reload
+days.forEach(d => state[d] = {});
+
+const tabsEl = document.getElementById('daytabs');
+const panelsEl = document.getElementById('panels');
+
+function itemKey(day, secIdx, itemIdx){ return secIdx+'-'+itemIdx; }
+
+function render(){
+  tabsEl.innerHTML = '';
+  panelsEl.innerHTML = '';
+
+  days.forEach((day, di) => {
+    const sections = schedule[day];
+    const totalItems = sections.reduce((a,s)=>a+s.items.length,0);
+    const checkedCount = Object.values(state[day]).filter(Boolean).length;
+
+    const tab = document.createElement('div');
+    tab.className = 'daytab' + (di===0 ? ' active':'');
+    tab.dataset.day = day;
+    tab.innerHTML = day.slice(0,3) + '<span class="count">'+checkedCount+'/'+totalItems+'</span>';
+    tab.onclick = () => selectDay(day);
+    tabsEl.appendChild(tab);
+
+    const panel = document.createElement('div');
+    panel.className = 'day-panel' + (di===0 ? ' active':'');
+    panel.dataset.day = day;
+
+    sections.forEach((sec, si) => {
+      const label = document.createElement('div');
+      label.className = 'section-label';
+      label.textContent = sec.label;
+      panel.appendChild(label);
+
+      sec.items.forEach((it, ii) => {
+        const key = itemKey(day, si, ii);
+        const checked = !!state[day][key];
+        const row = document.createElement('div');
+        row.className = 'item' + (checked ? ' checked':'');
+        row.onclick = () => {
+          state[day][key] = !state[day][key];
+          render();
+          selectDay(day, true);
+        };
+        row.innerHTML = `
+          <div class="box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#12180f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </div>
+          <div class="item-body">
+            <div class="item-title">${it.title}</div>
+            <div class="item-time">${it.t}</div>
+            ${it.note ? `<div class="item-note">${it.note}</div>` : ''}
+          </div>
+        `;
+        panel.appendChild(row);
+      });
+    });
+
+    if(day === days[days.length-1] && unscheduled.length){
+      const label = document.createElement('div');
+      label.className = 'section-label';
+      label.textContent = 'Not yet scheduled';
+      panel.appendChild(label);
+      unscheduled.forEach(u => {
+        const row = document.createElement('div');
+        row.className = 'item tbd';
+        row.innerHTML = `
+          <div class="box"></div>
+          <div class="item-body">
+            <div class="item-title">${u.title}</div>
+            <div class="item-note">${u.note}</div>
+          </div>
+        `;
+        panel.appendChild(row);
+      });
+    }
+
+    panelsEl.appendChild(panel);
+  });
+
+  updateProgress(getActiveDay());
+}
+
+function getActiveDay(){
+  const active = tabsEl.querySelector('.daytab.active');
+  return active ? active.dataset.day : days[0];
+}
+
+function selectDay(day, skipRender){
+  if(!skipRender){
+    tabsEl.querySelectorAll('.daytab').forEach(t => t.classList.toggle('active', t.dataset.day===day));
+    panelsEl.querySelectorAll('.day-panel').forEach(p => p.classList.toggle('active', p.dataset.day===day));
+  } else {
+    tabsEl.querySelectorAll('.daytab').forEach(t => t.classList.toggle('active', t.dataset.day===day));
+    panelsEl.querySelectorAll('.day-panel').forEach(p => p.classList.toggle('active', p.dataset.day===day));
+  }
+  updateProgress(day);
+}
+
+function updateProgress(day){
+  const sections = schedule[day];
+  const total = sections.reduce((a,s)=>a+s.items.length,0);
+  const done = Object.values(state[day]).filter(Boolean).length;
+  document.getElementById('progress-text').textContent = done + ' of ' + total + ' done — ' + day;
+}
+
+document.getElementById('reset-btn').onclick = () => {
+  days.forEach(d => state[d] = {});
+  render();
+};
+
+render();
+</script>
+</body>
+</html>

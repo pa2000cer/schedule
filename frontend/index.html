@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Personal Calendar</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <!-- Sign-in gate (T11): shown when GET /api/me returns 401. -->
+      <div class="signin-view" id="signin-view" hidden>
+        <div class="eyebrow">PERSONAL CALENDAR</div>
+        <h1>Sign in to continue</h1>
+        <div class="sub">Private, single-user app &mdash; Google sign-in required.</div>
+        <a class="google-btn" id="google-signin-btn" href="/auth/google/login">Sign in with Google</a>
+      </div>
+
+      <!-- Day view (T10 + T11 auth gating): shown when GET /api/me returns 200. -->
+      <div class="app-view" id="app-view" hidden>
+        <div class="topbar">
+          <span class="account-email" id="account-email"></span>
+          <div class="topbar-actions">
+            <button class="settings-link" id="settings-btn" type="button">&#9881; Settings</button>
+            <a class="signout-link" id="signout-link" href="/auth/logout">Sign out</a>
+          </div>
+        </div>
+
+        <header>
+          <div class="eyebrow" id="eyebrow">&nbsp;</div>
+          <h1 id="heading">&nbsp;</h1>
+          <div class="sub" id="sub">&nbsp;</div>
+        </header>
+
+        <div class="daynav">
+          <button class="nav-arrow" id="prev-day" aria-label="Previous day">&#8249;</button>
+          <div class="daytabs" id="daytabs"></div>
+          <button class="nav-arrow" id="next-day" aria-label="Next day">&#8250;</button>
+        </div>
+
+        <div id="panel"></div>
+
+        <div class="ask-bar">
+          <input type="text" id="ask-input" placeholder="Ask the assistant&hellip; e.g. add a facial Friday at 8pm" />
+          <button class="ask-btn" id="ask-btn" type="button">Send</button>
+        </div>
+        <div class="ask-result" id="ask-result" hidden></div>
+
+        <footer>
+          <span id="progress-text">0 of 0 tasks done</span>
+          <button class="reset-btn" id="reset-btn">Reset today's checks</button>
+        </footer>
+      </div>
+
+      <!-- Sync settings modal (T27): which Google calendars to sync + Sync now. -->
+      <div class="settings-modal" id="settings-modal" hidden>
+        <div class="settings-card">
+          <div class="settings-head">
+            <h2>Sync settings</h2>
+            <button class="settings-close" id="settings-close" type="button" aria-label="Close">&times;</button>
+          </div>
+          <div class="settings-sub">
+            Firestore is the source of truth. Enabled calendars sync two-way with Google.
+          </div>
+          <div class="section-label">Google calendars</div>
+          <div id="settings-cals"><div class="empty-state">Loading&hellip;</div></div>
+          <div class="settings-actions">
+            <button class="sync-now-btn" id="sync-now-btn" type="button">Sync now</button>
+            <span class="settings-note" id="settings-note"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
